@@ -92,7 +92,7 @@ class SupabaseService:
                     query = query.eq(key, value)
             
             if order_by:
-                query = query.order(by)
+                query = query.order(order_by)
             
             response = query.execute()
             return response.data

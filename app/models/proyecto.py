@@ -24,7 +24,6 @@ class ProyectoUpdate(BaseModel):
     fecha_fin: Optional[datetime] = None
     presupuesto: Optional[float] = None
     cliente: Optional[str] = None
-    tecnologias: Optional[list[str]] = None
     imagen_url: Optional[str] = None
 
 class Proyecto(ProyectoBase):

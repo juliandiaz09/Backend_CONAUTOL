@@ -5,12 +5,9 @@ from datetime import datetime
 class ServicioBase(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=200)
     descripcion: Optional[str] = None
-    precio: Optional[float] = Field(None, ge=0)
-    duracion: Optional[str] = None
     categoria: Optional[str] = None
     activo: bool = Field(default=True)
     icono: Optional[str] = None
-    caracteristicas: Optional[list[str]] = []
 
 class ServicioCreate(ServicioBase):
     pass
