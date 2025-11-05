@@ -1,6 +1,8 @@
 from app.extensions import get_supabase_client
 from typing import Optional, Dict, Any
 from gotrue.errors import AuthApiError
+from app.config import Config
+import uuid
 
 class SupabaseAuthService:
     """Servicio para autenticación con Supabase"""
@@ -90,7 +92,7 @@ class SupabaseService:
                     query = query.eq(key, value)
             
             if order_by:
-                query = query.order(order_by)
+                query = query.order(by)
             
             response = query.execute()
             return response.data
@@ -128,3 +130,68 @@ class SupabaseService:
             return True
         except Exception as e:
             raise Exception(f"Error al eliminar registro de {table}: {str(e)}")
+
+class SupabaseStorageService:
+    """Servicio para gestionar el almacenamiento de archivos en Supabase"""
+
+    def __init__(self):
+        self.client = get_supabase_client()
+        self.bucket_name = Config.BUCKET_NAME
+
+    def upload_file(self, file, destination_path: str):
+        """
+        Sube un archivo al bucket de Supabase.
+        Genera un nombre de archivo único para evitar colisiones.
+        """
+        try:
+            # Generar un nombre de archivo único
+            file_extension = file.filename.split('.')[-1]
+            unique_filename = f"{destination_path}/{uuid.uuid4()}.{file_extension}"
+
+            # Leer el contenido del archivo
+            file_content = file.read()
+            
+            # Subir el archivo
+            response = self.client.storage.from_(self.bucket_name).upload(
+                path=unique_filename,
+                file=file_content,
+                file_options={'content-type': file.content_type}
+            )
+
+            # Obtener la URL pública
+            public_url = self.client.storage.from_(self.bucket_name).get_public_url(unique_filename)
+            
+            return public_url
+
+        except Exception as e:
+            raise Exception(f"Error al subir el archivo: {str(e)}")
+
+    def delete_file(self, file_url: str):
+        """
+        Elimina un archivo del bucket de Supabase usando su URL pública.
+        """
+        try:
+            # Extraer el nombre del archivo de la URL
+            file_path = file_url.split(f'{self.bucket_name}/')[-1]
+            
+            response = self.client.storage.from_(self.bucket_name).remove([file_path])
+            return True
+        except Exception as e:
+            # Es posible que el archivo ya no exista, no lanzar error en ese caso
+            if "NotFoundError" in str(e):
+                return True
+            raise Exception(f"Error al eliminar el archivo: {str(e)}")
+
+    def update_file(self, old_file_url: str, new_file, destination_path: str):
+        """
+        Actualiza un archivo: elimina el antiguo y sube el nuevo.
+        """
+        try:
+            # Eliminar el archivo antiguo si existe
+            if old_file_url:
+                self.delete_file(old_file_url)
+            
+            # Subir el nuevo archivo
+            return self.upload_file(new_file, destination_path)
+        except Exception as e:
+            raise Exception(f"Error al actualizar el archivo: {str(e)}")

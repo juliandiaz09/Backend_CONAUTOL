@@ -48,3 +48,21 @@ def validate_password_strength(password: str) -> dict:
         'valid': len(errors) == 0,
         'errors': errors
     }
+
+def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, Optional[str]]:
+    """
+    Valida que todos los campos requeridos estén presentes y no estén vacíos
+    Returns:
+        tuple: (is_valid, error_message)
+    """
+    for field in required_fields:
+        if field not in data or not data[field]:
+            return False, f"El campo '{field}' es requerido"
+    return True, None
+
+def validate_required_fields(data: dict, required_fields: list) -> tuple[bool, Optional[str]]:
+    """Valida que los campos requeridos estén presentes y no estén vacíos."""
+    for field in required_fields:
+        if field not in data or not data[field]:
+            return False, f"El campo '{field}' es requerido y no puede estar vacío."
+    return True, None
