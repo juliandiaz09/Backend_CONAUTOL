@@ -10,7 +10,6 @@ class ProyectoBase(BaseModel):
     fecha_fin: Optional[datetime] = None
     presupuesto: Optional[float] = None
     cliente: Optional[str] = None
-    tecnologias: Optional[list[str]] = []
     imagen_url: Optional[str] = None
 
 class ProyectoCreate(ProyectoBase):

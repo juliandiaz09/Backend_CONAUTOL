@@ -8,6 +8,8 @@ class ServicioBase(BaseModel):
     categoria: Optional[str] = None
     activo: bool = Field(default=True)
     icono: Optional[str] = None
+    caracteristicas: Optional[list[str]] = None
+
 
 class ServicioCreate(ServicioBase):
     pass
