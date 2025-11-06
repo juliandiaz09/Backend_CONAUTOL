@@ -1,6 +1,5 @@
 from app.routes.proyectos import proyectos_bp
 from app.routes.servicios import servicios_bp
-from app.routes.chatbot import chatbot_bp
 from app.routes.admin import admin_bp
 
 def register_routes(app):
