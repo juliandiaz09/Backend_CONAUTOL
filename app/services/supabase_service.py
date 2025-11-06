@@ -8,7 +8,8 @@ class SupabaseAuthService:
     """Servicio para autenticación con Supabase"""
     
     def __init__(self):
-        self.client = get_supabase_client()
+        self.client = get_supabase_client(service_role=True)
+
     
     def sign_in(self, email: str, password: str) -> Dict[str, Any]:
         """
@@ -80,7 +81,8 @@ class SupabaseService:
     """Servicio genérico para operaciones CRUD con Supabase"""
     
     def __init__(self):
-        self.client = get_supabase_client()
+        self.client = get_supabase_client(service_role=True)
+
     
     def get_all(self, table: str, filters: Optional[Dict] = None, order_by: Optional[str] = None):
         """Obtiene todos los registros de una tabla"""
@@ -135,7 +137,7 @@ class SupabaseStorageService:
     """Servicio para gestionar el almacenamiento de archivos en Supabase"""
 
     def __init__(self):
-        self.client = get_supabase_client()
+        self.client = get_supabase_client(service_role=True)
         self.bucket_name = Config.BUCKET_NAME
 
     def upload_file(self, file, destination_path: str):
