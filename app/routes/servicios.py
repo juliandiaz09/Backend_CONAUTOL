@@ -34,7 +34,6 @@ def obtener_servicio(id):
 @token_required
 def crear_servicio():
     try:
-      print(request.form.get('data'))
       # 1) tomar data (JSON) y archivo (imagen) desde multipart/form-data
       data_str = request.form.get('data')
       if not data_str:
