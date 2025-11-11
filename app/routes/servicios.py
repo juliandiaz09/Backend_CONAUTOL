@@ -34,22 +34,28 @@ def obtener_servicio(id):
 @token_required
 def crear_servicio():
     try:
-        data_str = request.form.get('data')
-        if not data_str:
-            return jsonify({'error': 'No se proporcionaron datos'}), 400
-        
-        data = json.loads(data_str)
-        servicio_data = ServicioCreate(**data)
+      print(request.form.get('data'))
+      # 1) tomar data (JSON) y archivo (imagen) desde multipart/form-data
+      data_str = request.form.get('data')
+      if not data_str:
+          return jsonify({'error': 'No se proporcionaron datos'}), 400
+      data = json.loads(data_str)
 
-        if 'imagen' in request.files:
-            file = request.files['imagen']
-            imagen_url = storage_service.upload_file(file, 'servicios')
-            data['imagen_url'] = imagen_url
+      # 2) valida campos mínimos (ajusta tu modelo)
+      ServicioCreate(**data)
 
-        servicio = servicio_service.crear_servicio(data)
-        return jsonify(servicio), 201
+      # 3) si viene imagen, súbela y agrega la URL resultante
+      file = request.files.get('imagen')
+      if file:
+          imagen_url = storage_service.upload_file(file, 'servicios')
+          data['imagen_url'] = imagen_url
+
+      # 4) crea en base de datos
+      creado = servicio_service.crear_servicio(data)
+      return jsonify(creado), 201
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+      return jsonify({'error': str(e)}), 400
 
 @servicios_bp.route('/<int:id>', methods=['PUT'])
 @token_required
