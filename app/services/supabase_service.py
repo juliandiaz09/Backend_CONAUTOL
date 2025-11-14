@@ -1,5 +1,5 @@
 from app.extensions import get_supabase_client
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from gotrue.errors import AuthApiError
 from app.config import Config
 import uuid
@@ -168,6 +168,53 @@ class SupabaseStorageService:
         except Exception as e:
             raise Exception(f"Error al subir el archivo: {str(e)}")
 
+    def upload_multiple_files(self, files: List, destination_path: str) -> List[str]:
+        """
+        Sube múltiples archivos al bucket de Supabase.
+        
+        Args:
+            files: Lista de objetos file
+            destination_path: Ruta de destino en el bucket
+        
+        Returns:
+            Lista de URLs públicas de los archivos subidos
+        """
+        try:
+            uploaded_urls = []
+            
+            for file in files:
+                # Generar nombre único para cada archivo
+                file_extension = file.filename.split('.')[-1]
+                unique_filename = f"{destination_path}/{uuid.uuid4()}.{file_extension}"
+                
+                # Leer contenido del archivo
+                file_content = file.read()
+                
+                # Subir archivo
+                response = self.client.storage.from_(self.bucket_name).upload(
+                    path=unique_filename,
+                    file=file_content,
+                    file_options={'content-type': file.content_type}
+                )
+                
+                # Obtener URL pública
+                public_url = self.client.storage.from_(self.bucket_name).get_public_url(unique_filename)
+                uploaded_urls.append(public_url)
+                
+                # Reset file pointer para posible reuso
+                file.seek(0)
+            
+            return uploaded_urls
+            
+        except Exception as e:
+            # Limpiar archivos subidos en caso de error
+            for url in uploaded_urls:
+                try:
+                    self.delete_file(url)
+                except:
+                    pass
+            raise Exception(f"Error al subir múltiples archivos: {str(e)}")
+
     def delete_file(self, file_url: str):
         """
         Elimina un archivo del bucket de Supabase usando su URL pública.
@@ -184,6 +231,34 @@ class SupabaseStorageService:
                 return True
             raise Exception(f"Error al eliminar el archivo: {str(e)}")
 
+    def delete_multiple_files(self, file_urls: List[str]) -> bool:
+        """
+        Elimina múltiples archivos del bucket de Supabase.
+        
+        Args:
+            file_urls: Lista de URLs públicas de los archivos a eliminar
+        
+        Returns:
+            True si se eliminaron todos los archivos exitosamente
+        """
+        try:
+            file_paths = []
+            
+            for url in file_urls:
+                # Extraer el nombre del archivo de cada URL
+                file_path = url.split(f'{self.bucket_name}/')[-1]
+                file_paths.append(file_path)
+            
+            # Eliminar todos los archivos en una sola operación
+            response = self.client.storage.from_(self.bucket_name).remove(file_paths)
+            return True
+            
+        except Exception as e:
+            # Es posible que algunos archivos ya no existan
+            if "NotFoundError" in str(e):
+                return True
+            raise Exception(f"Error al eliminar múltiples archivos: {str(e)}")
+
     def update_file(self, old_file_url: str, new_file, destination_path: str):
         """
         Actualiza un archivo: elimina el antiguo y sube el nuevo.
@@ -197,3 +272,26 @@ class SupabaseStorageService:
             return self.upload_file(new_file, destination_path)
         except Exception as e:
             raise Exception(f"Error al actualizar el archivo: {str(e)}")
+
+    def update_multiple_files(self, old_file_urls: List[str], new_files: List, destination_path: str) -> List[str]:
+        """
+        Actualiza múltiples archivos: elimina los antiguos y sube los nuevos.
+        
+        Args:
+            old_file_urls: Lista de URLs de los archivos antiguos a eliminar
+            new_files: Lista de nuevos archivos a subir
+            destination_path: Ruta de destino en el bucket
+        
+        Returns:
+            Lista de URLs públicas de los nuevos archivos subidos
+        """
+        try:
+            # Eliminar archivos antiguos
+            if old_file_urls:
+                self.delete_multiple_files(old_file_urls)
+            
+            # Subir nuevos archivos
+            return self.upload_multiple_files(new_files, destination_path)
+            
+        except Exception as e:
+            raise Exception(f"Error al actualizar múltiples archivos: {str(e)}")
