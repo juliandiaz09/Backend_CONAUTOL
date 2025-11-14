@@ -2,10 +2,12 @@ from flask import Flask, request, make_response
 from flask_cors import CORS
 from app.config import Config
 from app.routes import register_routes
+from app.services.email_service import init_mail
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    init_mail(app)
 
     # --- Normaliza origins permitidos ---
     # FRONTEND_URL puede venir con barra final; Origin NO trae path.
