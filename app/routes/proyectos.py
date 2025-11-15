@@ -13,7 +13,7 @@ def listar_proyectos():
     try:
         proyectos = proyecto_service.listar_proyectos()
         
-        # 🔥 PARSEAR imagen_urls para cada proyecto
+        # Parsear imagen_urls para cada proyecto
         for proyecto in proyectos:
             if proyecto.get('imagen_urls'):
                 if isinstance(proyecto['imagen_urls'], str):
@@ -33,7 +33,7 @@ def obtener_proyecto(id):
     try:
         proyecto = proyecto_service.obtener_proyecto(id)
         if proyecto:
-            # 🔥 PARSEAR imagen_urls si es string JSON
+            # Parsear imagen_urls si es string JSON
             if proyecto.get('imagen_urls'):
                 if isinstance(proyecto['imagen_urls'], str):
                     try:
@@ -46,7 +46,6 @@ def obtener_proyecto(id):
                 proyecto['imagen_urls'] = []
             
             print(f"\n🔍 GET Proyecto {id}:")
-            print(f"  - imagen_url: {proyecto.get('imagen_url')}")
             print(f"  - imagen_urls: {proyecto.get('imagen_urls')}")
             print(f"  - tipo imagen_urls: {type(proyecto.get('imagen_urls'))}")
             
@@ -79,13 +78,11 @@ def crear_proyecto():
             imagen_urls = storage_service.upload_multiple_files(files, 'proyectos')
             print(f"✅ URLs generadas: {imagen_urls}")
         
-        # 🔥 Convertir array a JSON string (porque la columna es TEXT)
+        # 🔥 Solo guardamos imagen_urls (la primera es la principal)
         data['imagen_urls'] = json.dumps(imagen_urls)
-        data['imagen_url'] = None
         
         print(f"📋 Datos a guardar:")
         print(f"  - imagen_urls (JSON string): {data['imagen_urls']}")
-        print(f"  - imagen_url: {data['imagen_url']}")
 
         creado = proyecto_service.crear_proyecto(data)
         
@@ -119,8 +116,15 @@ def actualizar_proyecto(id):
         if not existente:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
 
-        # 🔥 PASO 1: Extraer y eliminar imagenes_a_eliminar (no es columna de BD)
+        print(f"\n📋 Datos recibidos:")
+        print(f"  - data: {data}")
+        
+        # 🔥 PASO 1: Extraer imagenes_a_eliminar y índice de imagen principal
         imagenes_a_eliminar = data.pop('imagenes_a_eliminar', [])
+        indice_principal = data.pop('indice_imagen_principal', 0)
+        
+        print(f"  - Imágenes a eliminar: {imagenes_a_eliminar}")
+        print(f"  - Índice imagen principal: {indice_principal}")
         
         # 🔥 PASO 2: Eliminar archivos del bucket
         if imagenes_a_eliminar:
@@ -131,26 +135,26 @@ def actualizar_proyecto(id):
                 except Exception as e:
                     print(f"⚠ Error eliminando imagen {url}: {e}")
         
-        # 🔥 PASO 3: Construir lista de URLs que se mantendrán
-        urls_a_mantener = []
+        # 🔥 PASO 3: Obtener URLs existentes
+        urls_existentes_raw = existente.get('imagen_urls', '[]')
         
-        # Obtener URLs existentes de AMBAS columnas (migración)
-        urls_existentes_total = []
+        if isinstance(urls_existentes_raw, str):
+            try:
+                urls_existentes = json.loads(urls_existentes_raw)
+            except:
+                urls_existentes = []
+        else:
+            urls_existentes = urls_existentes_raw if isinstance(urls_existentes_raw, list) else []
         
-        if existente.get('imagen_url'):
-            urls_existentes_total.append(existente['imagen_url'])
-        
-        if existente.get('imagen_urls') and isinstance(existente['imagen_urls'], list):
-            urls_existentes_total.extend(existente['imagen_urls'])
+        print(f"📸 URLs existentes: {urls_existentes}")
         
         # Filtrar las que NO están marcadas para eliminar
         urls_a_mantener = [
-            url for url in urls_existentes_total 
+            url for url in urls_existentes 
             if url not in imagenes_a_eliminar
         ]
         
-        # Eliminar duplicados
-        urls_a_mantener = list(set(urls_a_mantener))
+        print(f"📸 URLs a mantener: {urls_a_mantener}")
         
         # 🔥 PASO 4: Agregar nuevas imágenes si vienen archivos
         new_files = request.files.getlist('imagenes')
@@ -159,12 +163,18 @@ def actualizar_proyecto(id):
             urls_a_mantener.extend(nuevas_urls)
             print(f"✓ {len(nuevas_urls)} imagen(es) nueva(s) subida(s)")
         
-        # 🔥 PASO 5: Preparar datos para actualizar (SIN imagenes_a_eliminar)
+        # 🔥 PASO 5: Reordenar array para que la principal esté primera
+        if urls_a_mantener and 0 <= indice_principal < len(urls_a_mantener):
+            # Mover la imagen principal al inicio
+            imagen_principal = urls_a_mantener.pop(indice_principal)
+            urls_a_mantener.insert(0, imagen_principal)
+            print(f"📸 Imagen principal movida al inicio: {imagen_principal}")
+        
+        # 🔥 PASO 6: Preparar datos para actualizar
         update_data = {k: v for k, v in data.items() if v is not None}
         
-        # 🔥 Convertir array a JSON string (porque la columna es TEXT)
+        # Convertir array a JSON string
         update_data['imagen_urls'] = json.dumps(urls_a_mantener)
-        update_data['imagen_url'] = None
         
         print(f"📊 Resumen: {len(urls_a_mantener)} imagen(es) total(es)")
         print(f"📝 Datos a actualizar: {list(update_data.keys())}")
@@ -180,6 +190,8 @@ def actualizar_proyecto(id):
 
     except Exception as e:
         print(f"❌ Error general: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
 
 @proyectos_bp.route('/<int:id>', methods=['DELETE'])
@@ -190,21 +202,19 @@ def eliminar_proyecto(id):
         if not proyecto_existente:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
 
-        # 🔥 Recolectar TODAS las URLs de ambas columnas
+        # 🔥 Solo necesitamos imagen_urls
         urls_a_eliminar = []
         
-        # De imagen_url (antigua, para migración)
-        if proyecto_existente.get('imagen_url'):
-            urls_a_eliminar.append(proyecto_existente['imagen_url'])
+        if proyecto_existente.get('imagen_urls'):
+            if isinstance(proyecto_existente['imagen_urls'], str):
+                try:
+                    urls_a_eliminar = json.loads(proyecto_existente['imagen_urls'])
+                except:
+                    pass
+            elif isinstance(proyecto_existente['imagen_urls'], list):
+                urls_a_eliminar = proyecto_existente['imagen_urls']
         
-        # De imagen_urls (nueva)
-        if proyecto_existente.get('imagen_urls') and isinstance(proyecto_existente['imagen_urls'], list):
-            urls_a_eliminar.extend(proyecto_existente['imagen_urls'])
-        
-        # Eliminar duplicados
-        urls_a_eliminar = list(set(urls_a_eliminar))
-        
-        # 🔥 Eliminar todos los archivos del bucket
+        # Eliminar archivos del bucket
         if urls_a_eliminar:
             try:
                 storage_service.delete_multiple_files(urls_a_eliminar)
