@@ -9,6 +9,10 @@ class ServicioBase(BaseModel):
     activo: bool = Field(default=True)
     icono: Optional[str] = None
     caracteristicas: Optional[list[str]] = None
+    # 🔥 NUEVO: Agregar imagen_urls como array
+    imagen_urls: Optional[list[str]] = None
+    # 👇 Deprecated - solo para migración
+    imagen_url: Optional[str] = None
 
 
 class ServicioCreate(ServicioBase):
@@ -23,6 +27,12 @@ class ServicioUpdate(BaseModel):
     activo: Optional[bool] = None
     icono: Optional[str] = None
     caracteristicas: Optional[list[str]] = None
+    # 🔥 NUEVO: Array de URLs
+    imagen_urls: Optional[list[str]] = None
+    # 🔥 NUEVO: URLs a eliminar
+    imagenes_a_eliminar: Optional[list[str]] = None
+    # 🔥 NUEVO: Índice de imagen principal
+    indice_imagen_principal: Optional[int] = None
 
 class Servicio(ServicioBase):
     id: int
