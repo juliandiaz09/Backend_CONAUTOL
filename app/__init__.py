@@ -17,6 +17,7 @@ def create_app():
         frontend_cfg,
         'http://localhost:4200',
         'http://127.0.0.1:4200',
+        'https://juliandiaz09.github.io',
     }
 
     # --- CORS para /api/* ---
